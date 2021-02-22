@@ -174,7 +174,7 @@ class PraPRParser:
 
 if __name__ == "__main__":
     data_dir = "/filesystem/patch_ranking/ProflPartialMatrix/python/data/prapr/yiling_data"
-    output_dir = "output"
+    output_dir = "parsed_data"
     project = "Mockito"
     num_cores = 8
     pp = PraPRParser(data_dir, output_dir, project, num_cores)
