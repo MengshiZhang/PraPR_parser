@@ -45,6 +45,7 @@ class PatchRerankerSamApproach:
         matrix_type="partial",
         modified_entity_level="method",
         num_threads=6,
+        treat_nonfix_as_negtive=True,
     ):
         self._data_dir = data_dir
         self._org_output_dir = output_dir
@@ -54,9 +55,13 @@ class PatchRerankerSamApproach:
         self._modified_entity_level = modified_entity_level
         self._num_threads = num_threads
 
-        self._output_dir = os.path.join(output_dir, self._matrix_type)
-        os.makedirs(self._output_dir, exist_ok=True)
+        if not treat_nonfix_as_negtive:
+            PATCH_CATEGORY_QUALITY_DICT['PatchCategory.NoneFix'] = None
+            self._output_dir = os.path.join(output_dir+"_nononfix", self._matrix_type)
+        else:
+            self._output_dir = os.path.join(output_dir, self._matrix_type)
 
+        os.makedirs(self._output_dir, exist_ok=True)
         self.project_version_tuple_list = []
 
 
@@ -160,6 +165,14 @@ class PatchRerankerSamApproach:
                 return cnt
 
 
+    def doesIncludePlausibleFix(self, version_data):
+        for patch_id, patch_data in version_data.items():
+            if patch_data["patch_category"] == "PatchCategory.CleanFixFull":
+                return True
+        
+        return False
+
+
     def jit_patch_rerank(self, project_version_tuple):
         project, version = project_version_tuple
         print("processing {} - {} - {}".format(project, version, self._matrix_type))
@@ -169,8 +182,10 @@ class PatchRerankerSamApproach:
             repair_data = json.load(file)
 
         result = {}
-        
         version_data = repair_data["patch"]
+        if not self.doesIncludePlausibleFix(version_data):
+            return
+
         revised_subject_patch_dict = self._revise_version_data(version_data)
         baseline_rank = self._compute_baseline(revised_subject_patch_dict)
 
@@ -183,6 +198,12 @@ class PatchRerankerSamApproach:
 
         while selected_candidate_patch_category != "PatchCategory.CleanFixFull":
             selected_candidate_id = self._get_validation_candidate(revised_subject_patch_dict)
+            if selected_candidate_id != -1:
+                visited_patch_id_list.append(selected_candidate_id)
+            else:
+                assert len(visited_patch_id_list) == len(revised_subject_patch_dict.keys()), "error for checked all patches"
+                break
+
             self._update_subject_patch(revised_subject_patch_dict, selected_candidate_id)
             selected_candidate_patch_category = revised_subject_patch_dict[selected_candidate_id]["patch_category"]
             visited_patch_id_list.append(selected_candidate_id)
@@ -197,7 +218,7 @@ class PatchRerankerSamApproach:
         output_filename = os.path.join(self._output_dir, "{}_{}.json".format(project, version))
         with open(output_filename, 'w') as json_file:
             json.dump(result, json_file, indent=4)
-    
+        
 
     def run_all(self):
         self.get_all_project_version_tuple()
