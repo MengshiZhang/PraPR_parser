@@ -62,12 +62,17 @@ class PraPRParser:
                     modified_line_num = int(tag.split(":")[-1])
                     test_execution_list = parse_tests(testOrder)
                     failed_test_list = parse_tests(testFail)
+                    ordered_failed_test_list = []
+
+                    for test_i in test_execution_list:
+                        if test_i in failed_test_list:
+                            ordered_failed_test_list.append(test_i)
 
                     patch_dict[patch_id] = {
                         "method": method,
                         "line": modified_line_num,
                         "test_execution_list": test_execution_list,
-                        "failed_test_list": failed_test_list,
+                        "failed_test_list": ordered_failed_test_list,
                     }
 
                     patch_id += 1
@@ -134,18 +139,18 @@ class PraPRParser:
 
         merged_result_dict, id_method_mapping = self._merge_result(patch_dict, test_dict)
         
-        # save full result
-        full_output_dir = os.path.join(self._output_dir, "full")
-        os.makedirs(full_output_dir, exist_ok=True)
-        full_output_filename = os.path.join(full_output_dir, "{}_{}.json".format(project, version))
+        # # save full result
+        # full_output_dir = os.path.join(self._output_dir, "full")
+        # os.makedirs(full_output_dir, exist_ok=True)
+        # full_output_filename = os.path.join(full_output_dir, "{}_{}.json".format(project, version))
 
-        with open(full_output_filename, 'w') as json_file:
-            json.dump({
-                "patch": merged_result_dict,
-                "method": id_method_mapping,
-                "test": test_dict,
-            }, json_file, indent=4)
-        
+        # with open(full_output_filename, 'w') as json_file:
+        #     json.dump({
+        #         "patch": merged_result_dict,
+        #         "method": id_method_mapping,
+        #         "test": test_dict,
+        #     }, json_file, indent=4)
+
 
         # save partial result
         partial_output_dir = os.path.join(self._output_dir, "partial")
