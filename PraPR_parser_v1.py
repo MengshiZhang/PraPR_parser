@@ -80,6 +80,36 @@ class PraPRParser:
         return patch_dict
 
 
+    def _change_test_execution_order(self, patch_dict, test_dict):
+        failed_test_list = []
+        passed_test_list = []
+        # test name -> test_id
+        test_name2id_dict = {}
+        for test_id, test_info in test_dict.items():
+            test_name = test_info["test"]
+            if test_info["test_result"] == "P":
+                passed_test_list.append(test_name)
+
+            if test_info["test_result"] == "F":
+                failed_test_list.append(test_name)
+
+            test_name2id_dict[test_name] = test_id
+
+        # ordered_test_list = (ab) ordered failed tests + ordered passed tests
+        ordered_test_list = sorted(failed_test_list) + sorted(passed_test_list)
+        ordered_test_id_list = [test_name2id_dict[test_name] for test_name in ordered_test_list]
+
+        # revise patch dict
+        for _, patch_data in patch_dict.items():
+            test_execution_list = patch_data["test_execution_list"]
+            reordered_test_execution_list = [test_i for test_i in ordered_test_id_list if test_i in test_execution_list]
+            patch_data["test_execution_list"] = reordered_test_execution_list
+
+            failed_test_list = patch_data["failed_test_list"]
+            reordered_failed_test_list = [test_i for test_i in ordered_test_id_list if test_i in failed_test_list]
+            patch_data["failed_test_list"] = reordered_failed_test_list
+
+
     def _merge_result(self, patch_dict, test_dict):
         merged_result_dict = {}
         method_id_mapping = {}
@@ -119,9 +149,9 @@ class PraPRParser:
 
         return merged_result_dict, id_method_mapping
 
-    
+
     def _truncate_test_excution(self, patch_dict):
-        for patch_id, patch_data in patch_dict.items():
+        for _, patch_data in patch_dict.items():
             if len(patch_data["failed_test_list"]) > 0:
                 first_failed_test_id = patch_data["failed_test_list"][0]
                 first_failed_test_idx = patch_data["test_execution_list"].index(first_failed_test_id)
@@ -137,19 +167,20 @@ class PraPRParser:
         patch_dict = self._parse_mutant_log(mutant_log_filename)
         test_dict = self._parse_test_log(test_log_filename)
 
+        self._change_test_execution_order(patch_dict, test_dict)
         merged_result_dict, id_method_mapping = self._merge_result(patch_dict, test_dict)
         
-        # # save full result
-        # full_output_dir = os.path.join(self._output_dir, "full")
-        # os.makedirs(full_output_dir, exist_ok=True)
-        # full_output_filename = os.path.join(full_output_dir, "{}_{}.json".format(project, version))
+        # save full result
+        full_output_dir = os.path.join(self._output_dir, "full")
+        os.makedirs(full_output_dir, exist_ok=True)
+        full_output_filename = os.path.join(full_output_dir, "{}_{}.json".format(project, version))
 
-        # with open(full_output_filename, 'w') as json_file:
-        #     json.dump({
-        #         "patch": merged_result_dict,
-        #         "method": id_method_mapping,
-        #         "test": test_dict,
-        #     }, json_file, indent=4)
+        with open(full_output_filename, 'w') as json_file:
+            json.dump({
+                "patch": merged_result_dict,
+                "method": id_method_mapping,
+                "test": test_dict,
+            }, json_file, indent=4)
 
 
         # save partial result
@@ -166,7 +197,7 @@ class PraPRParser:
                 "method": id_method_mapping,
                 "test": test_dict,
             }, json_file, indent=4)
-    
+
 
     def process_all(self):
         for project in self.project_list:
@@ -175,11 +206,9 @@ class PraPRParser:
             for version in version_list:
                 self.parse_version_i(project, version)
 
-            # print(version_list)
-
 
 if __name__ == "__main__":
-    data_dir = "/filesystem/patch_ranking/ProflPartialMatrix/python/data/prapr/yiling_data"
+    data_dir = "/filesystem/patch_ranking/ProflPartialMatrix/python/data/prapr/trash"
     output_dir = "output"
     project_list = ["Mockito"]
     pp = PraPRParser(data_dir, output_dir, project_list)
