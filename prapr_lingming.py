@@ -32,12 +32,11 @@ def get_patch_category(fp_len, pf_len, ff_len):
 
 
 class PraprParser():
-    def __init__(self, prapr_dir, failing_test_dir, output_dir):
+    def __init__(self, prapr_dir, output_dir):
         self._prapr_dir = prapr_dir
-        self._failing_test_dir = failing_test_dir
         self._output_dir = os.path.join(output_dir)
-        self._Lang_version = [6, 7, 10, 22, 25, 26, 27, 31, 33, 39, 43, 44, 51, 57, 58, 59, 60, 61, 63]
-        # self._Lang_version = [6]
+        # self._Lang_version = [6, 7, 10, 22, 25, 26, 27, 31, 33, 39, 43, 44, 51, 57, 58, 59, 60, 61, 63]
+        self._Lang_version = [6]
 
         self._tool_name = "prapr"
 
@@ -45,13 +44,22 @@ class PraprParser():
 
 
     def _parse_original_failing_tests(self, version_id):
-        test_filename = os.path.join(self._failing_test_dir, "{}.txt".format(version_id))
-        failing_tests = set()
+        version_str = str(version_id)
+        pom_file = os.path.join(self._prapr_dir, version_str, "pom.xml")
 
-        with open(test_filename) as file:
-            for line in file:
-                failing_tests.add(line.rstrip("\n").replace("::", "."))
-        return failing_tests
+        with open(pom_file) as file:
+            doc = xmltodict.parse(file.read())
+            for i in doc['project']['build']['plugins']['plugin']:
+                if i['artifactId'] == "prapr-plugin":
+                    failingTests = i['configuration']['failingTests']['failingTest']
+                    if type(failingTests) == str:
+                        failingTests = [failingTests]
+        
+        failing_test_set = set()
+        for i in failingTests:
+            failing_test_set.add(i.replace("::", "."))
+
+        return failing_test_set
 
 
     def _read_prapr_report(self, version_id):
@@ -157,6 +165,7 @@ class PraprParser():
 
     def _run_project(self, version_id):
         failing_tests = self._parse_original_failing_tests(version_id)
+
         mutation_dict = self._read_prapr_report(version_id)
         full_result = self._merge_result(failing_tests, mutation_dict)
 
@@ -191,8 +200,7 @@ class PraprParser():
 
 if __name__ == "__main__":
     prapr_dir = os.path.abspath("/filesystem/patch_ranking/SubjectPrograms/Lang4Test")
-    failing_test_dir = "/filesystem/patch_ranking/ProflPartialMatrix/python/data/prapr/FailingTests/Lang"
     output_dir = os.path.abspath("/filesystem/patch_ranking/ProflPartialMatrix/python/data/prapr/lingming_data/output")
 
-    pp = PraprParser(prapr_dir, failing_test_dir, output_dir)
+    pp = PraprParser(prapr_dir, output_dir)
     pp.run_all_project()
