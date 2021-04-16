@@ -101,6 +101,8 @@ class PraprParser():
                 "modified_line": modified_line,
                 "executed_tests": sorted_executed_tests,
                 "failed_tests": sorted_failed_tests,
+                "mutator": mutation_i["mutator"],
+                "description": mutation_i["description"],
             }
 
         return mutation_dict
@@ -134,6 +136,8 @@ class PraprParser():
                 "ff_len": ff_len,
                 "fp_len": fp_len,
                 "patch_category": patch_category,
+                "mutator": patch_content["mutator"],
+                "description": patch_content["description"],
             }
             modified_method_set.add(patch_content["modified_method"])
         
