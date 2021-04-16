@@ -183,6 +183,7 @@ class PraprParser():
         os.makedirs(full_output_dir, exist_ok=True)
         os.makedirs(partial_output_dir, exist_ok=True)
 
+        # Please change the output filename properly :)
         full_output_filename = os.path.join(full_output_dir, "Lang_{}.json".format(version_id))
         partial_output_filename = os.path.join(partial_output_dir, "Lang_{}.json".format(version_id))
         
